@@ -1,6 +1,6 @@
 # 🤖 AI Interview Assistant
 
-A production-ready, full-stack AI-powered mock interview platform built with **Python**, **Streamlit**, **Gemini 2.5 Flash**, and **OpenRouter**.
+A production-ready, full-stack AI-powered mock interview platform built with **Python**, **Streamlit**, and **OpenRouter** (using Gemini 2.5 Flash & Llama 3.3 70B models).
 
 ---
 
@@ -9,11 +9,11 @@ A production-ready, full-stack AI-powered mock interview platform built with **P
 | Feature | Description |
 |---|---|
 | 📄 **Resume Upload** | Parse PDF resumes — extract skills, experience, education, projects |
-| ✨ **AI Profile Summary** | Gemini generates a professional 3–5 sentence profile summary |
+| ✨ **AI Profile Summary** | AI generates a professional 3–5 sentence profile summary |
 | 📊 **ATS Score Checker** | Score (0–100), grade, missing skills, Plotly charts |
 | 🎯 **Interview Setup** | Category + difficulty + job role + question count |
 | 🎤 **Interview Mode** | Answer questions one at a time, skip or end early |
-| 🤖 **AI Evaluation** | Gemini scores 5 criteria per answer (Technical Accuracy, Problem Solving, Communication, Completeness, Confidence) |
+| 🤖 **AI Evaluation** | AI scores 5 criteria per answer (Technical Accuracy, Problem Solving, Communication, Completeness, Confidence) |
 | 📈 **Performance Dashboard** | Gauge, radar, bar charts + per-question breakdown |
 | 📑 **PDF Report** | Full ReportLab report — download anytime |
 | 💬 **Career Chatbot** | OpenRouter-powered chatbot for interview prep & career guidance |
@@ -55,13 +55,10 @@ pip install -r requirements.txt
 
 ### 4. Configure API Keys
 
-Open `.env` and fill in your keys:
+Open `.env` and fill in your key:
 
 ```env
-# Get from: https://aistudio.google.com/app/apikey
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# OpenRouter key (for chatbot) — already pre-filled
+# OpenRouter key — get from: https://openrouter.ai/keys
 OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
@@ -83,8 +80,8 @@ AI_Interview_Assistant/
 ├── config.py               # API keys, constants, ATS keyword database
 ├── resume_parser.py        # PDF extraction (pdfplumber) + NLP skill detection
 ├── ats_checker.py          # ATS scoring: keywords, structure, formatting
-├── question_generator.py   # Gemini-powered question generation
-├── answer_evaluator.py     # Gemini-powered answer evaluation (5 criteria)
+├── question_generator.py   # AI-powered question generation (via OpenRouter)
+├── answer_evaluator.py     # AI-powered answer evaluation (5 criteria, via OpenRouter)
 ├── chatbot.py              # OpenRouter chatbot (Llama 3.3 70B)
 ├── report_generator.py     # ReportLab PDF report generator
 ├── database.py             # Local JSON session storage
@@ -107,7 +104,7 @@ AI_Interview_Assistant/
 | Layer | Technology |
 |---|---|
 | **Frontend** | Streamlit + Custom CSS (glassmorphism dark theme) |
-| **AI / LLM** | Google Gemini 2.5 Flash (questions, evaluation, summaries) |
+| **AI / LLM** | OpenRouter → Google Gemini 2.5 Flash (questions, evaluation, summaries) |
 | **Chatbot** | OpenRouter → Meta Llama 3.3 70B Instruct |
 | **PDF Parsing** | pdfplumber |
 | **Charts** | Plotly (gauge, radar, bar, line) |
@@ -131,7 +128,7 @@ Categories scored: Programming Languages, Web Frameworks, Data Science & ML, Clo
 
 ## 🤖 Evaluation Criteria
 
-Each answer is evaluated by Gemini on:
+Each answer is evaluated by AI on:
 
 | Criterion | Weight |
 |---|---|
@@ -167,7 +164,7 @@ The chatbot (powered by OpenRouter + Llama 3.3 70B) can help with:
 | Issue | Solution |
 |---|---|
 | `pdfplumber` can't read text | Ensure the PDF is not a scanned image (use text-based PDFs) |
-| Gemini API error | Check `GEMINI_API_KEY` in `.env` is valid |
+| AI API error | Check `OPENROUTER_API_KEY` in `.env` is valid |
 | Chatbot not responding | Verify `OPENROUTER_API_KEY` and internet connection |
 | pyaudio install fails | Use `pipwin install pyaudio` on Windows |
 | Report not generating | Ensure `reports/` directory exists (auto-created on startup) |
@@ -180,4 +177,4 @@ MIT License — free for personal and commercial use.
 
 ---
 
-*Built with ❤️ using Streamlit + Gemini + OpenRouter*
+*Built with ❤️ using Streamlit + OpenRouter*

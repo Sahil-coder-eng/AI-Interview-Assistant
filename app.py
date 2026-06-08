@@ -36,7 +36,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
     menu_items={
         "Get Help": "https://github.com",
-        "About": "AI Interview Assistant — Powered by Gemini & OpenRouter",
+        "About": "AI Interview Assistant — Powered by OpenRouter",
     },
 )
 
@@ -312,7 +312,7 @@ def page_home():
     features = [
         ("📄", "Resume Analysis",         "AI-powered skill extraction and profile summary generation."),
         ("📊", "ATS Score Checker",       "Know your ATS compatibility score before applying."),
-        ("🎤", "AI Mock Interview",       "Personalised questions evaluated by Gemini AI in real time."),
+        ("🎤", "AI Mock Interview",       "Personalised questions evaluated by AI in real time."),
         ("📈", "Performance Dashboard",   "Radar charts, category scores, and actionable insights."),
         ("💬", "Career Chatbot",          "Ask anything about interviews, code, or your career path."),
         ("📑", "PDF Report",              "Download a full interview report to track your growth."),
@@ -817,13 +817,13 @@ def _render_interview_complete():
         <div style="font-size:3rem; margin-bottom:0.5rem;">🎉</div>
         <div style="font-size:1.4rem; font-weight:700; color:#43E97B;">Interview Complete!</div>
         <div style="color:#94A3B8; margin-top:0.5rem;">
-            All answers submitted. Evaluating your performance with Gemini AI...
+            All answers submitted. Evaluating your performance with AI...
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     if st.session_state.session_evaluation is None:
-        with st.spinner("🤖 Gemini AI is evaluating your answers... this may take 30–60 seconds."):
+        with st.spinner("🤖 AI is evaluating your answers... this may take 30–60 seconds."):
             evaluator = AnswerEvaluator()
             evaluation = evaluator.evaluate_session(st.session_state.answers)
             st.session_state.session_evaluation = evaluation

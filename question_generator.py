@@ -10,7 +10,7 @@ from config import OPENROUTER_MODEL_INTERVIEW
 
 class QuestionGenerator:
     """
-    Generates personalised interview questions using the Gemini API
+    Generates personalised interview questions using the AI API
     based on the candidate's resume data, selected category, and
     desired difficulty level.
     """
@@ -76,7 +76,7 @@ class QuestionGenerator:
 
     def generate_profile_summary(self, resume_data: dict) -> str:
         """
-        Ask Gemini to write a professional summary for the candidate
+        Ask AI to write a professional summary for the candidate
         based on the extracted resume information.
         """
         skills = ", ".join(resume_data.get("skills", [])[:20])
@@ -111,7 +111,7 @@ Return ONLY the summary paragraph.
         num_questions: int,
         job_role: str,
     ) -> str:
-        """Build the Gemini prompt for question generation."""
+        """Build the AI prompt for question generation."""
         skills = ", ".join(resume_data.get("skills", [])[:25])
         projects_snippet = resume_data.get("projects", "")[:600]
         experience_snippet = resume_data.get("experience", "")[:600]
@@ -153,7 +153,7 @@ JSON format:
         self, raw_text: str, category: str, difficulty: str
     ) -> list[dict]:
         """
-        Parse Gemini's JSON response into a list of question dicts.
+        Parse AI's JSON response into a list of question dicts.
         Falls back to regex extraction if JSON parsing fails.
         """
         # Strip potential markdown code fences

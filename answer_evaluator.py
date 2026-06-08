@@ -1,5 +1,5 @@
 # ============================================================
-#  answer_evaluator.py — AI-powered answer evaluation via Gemini
+#  answer_evaluator.py — AI-powered answer evaluation via OpenRouter
 # ============================================================
 
 import json
@@ -10,7 +10,7 @@ from config import OPENROUTER_MODEL_INTERVIEW, EVALUATION_CRITERIA
 
 class AnswerEvaluator:
     """
-    Evaluates a candidate's interview answer using the Gemini API.
+    Evaluates a candidate's interview answer using the AI API.
 
     Scoring is done across five criteria (each 0–10):
       - Technical Accuracy
@@ -114,7 +114,7 @@ class AnswerEvaluator:
     def _build_evaluation_prompt(
         self, question: str, answer: str, context: dict
     ) -> str:
-        """Construct the Gemini evaluation prompt."""
+        """Construct the AI evaluation prompt."""
         context_str = ""
         if context:
             skills = ", ".join(context.get("skills", [])[:15])
@@ -155,7 +155,7 @@ Return ONLY valid JSON. No markdown, no extra text. Format:
     # ── Response Parser ─────────────────────────────────────────────────────
 
     def _parse_evaluation(self, raw_text: str) -> dict:
-        """Parse the Gemini JSON response into a clean evaluation dict."""
+        """Parse the AI JSON response into a clean evaluation dict."""
         cleaned = re.sub(r"```(?:json)?", "", raw_text).strip()
 
         try:
