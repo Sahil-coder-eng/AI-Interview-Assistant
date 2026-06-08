@@ -4,8 +4,8 @@
 
 import json
 import re
-import google.generativeai as genai
-from config import GEMINI_API_KEY, GEMINI_MODEL, EVALUATION_CRITERIA
+from ai_client import AIClient
+from config import OPENROUTER_MODEL_INTERVIEW, EVALUATION_CRITERIA
 
 
 class AnswerEvaluator:
@@ -32,9 +32,8 @@ class AnswerEvaluator:
     }
 
     def __init__(self):
-        """Configure Gemini SDK."""
-        genai.configure(api_key=GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(GEMINI_MODEL)
+        """Configure the unified AI client."""
+        self.client = AIClient()
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -62,8 +61,8 @@ class AnswerEvaluator:
 
         prompt = self._build_evaluation_prompt(question, answer, context)
         try:
-            response = self.model.generate_content(prompt)
-            return self._parse_evaluation(response.text)
+            response_text = self.client.generate_content(prompt, model_name=OPENROUTER_MODEL_INTERVIEW)
+            return self._parse_evaluation(response_text)
         except Exception as e:
             print(f"[AnswerEvaluator] Error: {e}")
             return self._fallback_evaluation()

@@ -12,10 +12,12 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = "gemini-2.5-flash"  # Primary model
 
-# OpenRouter (used for chatbot assistant)
+# OpenRouter Configuration
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct"  # Default chatbot model
+OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct"  # Fallback / default model
+OPENROUTER_MODEL_CHAT = "meta-llama/llama-3.3-70b-instruct"
+OPENROUTER_MODEL_INTERVIEW = "google/gemini-2.5-flash"  # Preserves Gemini experience via OpenRouter
 
 # ─── App Settings ─────────────────────────────────────────────────────────────
 APP_TITLE = os.getenv("APP_TITLE", "AI Interview Assistant")

@@ -4,8 +4,8 @@
 
 import json
 import re
-import google.generativeai as genai
-from config import GEMINI_API_KEY, GEMINI_MODEL
+from ai_client import AIClient
+from config import OPENROUTER_MODEL_INTERVIEW
 
 
 class QuestionGenerator:
@@ -16,9 +16,8 @@ class QuestionGenerator:
     """
 
     def __init__(self):
-        """Configure Gemini SDK with the API key from config."""
-        genai.configure(api_key=GEMINI_API_KEY)
-        self.model = genai.GenerativeModel(GEMINI_MODEL)
+        """Configure the unified AI client."""
+        self.client = AIClient()
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -47,8 +46,8 @@ class QuestionGenerator:
             resume_data, category, difficulty, num_questions, job_role
         )
         try:
-            response = self.model.generate_content(prompt)
-            return self._parse_questions(response.text, category, difficulty)
+            response_text = self.client.generate_content(prompt, model_name=OPENROUTER_MODEL_INTERVIEW)
+            return self._parse_questions(response_text, category, difficulty)
         except Exception as e:
             print(f"[QuestionGenerator] Error: {e}")
             return self._fallback_questions(category, difficulty, num_questions)
@@ -97,8 +96,8 @@ Do NOT make up specific company names or dates not mentioned above.
 Return ONLY the summary paragraph.
 """
         try:
-            response = self.model.generate_content(prompt)
-            return response.text.strip()
+            response_text = self.client.generate_content(prompt, model_name=OPENROUTER_MODEL_INTERVIEW)
+            return response_text.strip()
         except Exception as e:
             return f"Profile summary unavailable. Error: {e}"
 
