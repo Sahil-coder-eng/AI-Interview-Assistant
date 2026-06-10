@@ -16,7 +16,7 @@ import plotly.express as px
 import pandas as pd
 
 # ── Local modules ─────────────────────────────────────────────────────────────
-from config import APP_TITLE, APP_ICON, UPLOAD_DIR, REPORTS_DIR, QUESTION_CATEGORIES, DIFFICULTY_LEVELS
+from config import APP_TITLE, APP_ICON, UPLOAD_DIR, REPORTS_DIR, QUESTION_CATEGORIES, DIFFICULTY_LEVELS, COMPANY_LIST, COMPANY_PROFILES
 from resume_parser import ResumeParser
 from ats_checker import ATSChecker
 from question_generator import QuestionGenerator
@@ -77,6 +77,7 @@ def init_session_state():
         "interview_difficulty": "Intermediate",
         "interview_category": "Technical",
         "interview_job_role": "",
+        "interview_company": "",
         "num_questions": 5,
         # Evaluation
         "session_evaluation": None,
@@ -501,7 +502,7 @@ def _render_resume_details(data: dict):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def page_ats_checker():
-    st.markdown('<div class="hero-header"><h1>📊 ATS Score Checker</h1><p>Discover how well your resume performs against Applicant Tracking Systems.</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-header"><h1>📊 ATS Score Checker</h1><p>Paste a job description to see how well your resume matches that specific role.</p></div>', unsafe_allow_html=True)
 
     if not st.session_state.resume_uploaded:
         st.warning("⚠️ Please upload your resume first.")
@@ -510,13 +511,83 @@ def page_ats_checker():
             st.rerun()
         return
 
-    # Run ATS analysis
-    if st.session_state.ats_results is None:
-        with st.spinner("🔍 Calculating ATS compatibility score..."):
+    # ── Job Description Input ────────────────────────────────────────────────
+    st.markdown("### 📝 Paste Job Description")
+    st.markdown(
+        '<div style="color:#94A3B8; font-size:0.88rem; margin-bottom:0.5rem;">'
+        'Paste the full job description below. The AI will extract keywords and '
+        'score your resume against this specific role.</div>',
+        unsafe_allow_html=True,
+    )
+
+    job_description = st.text_area(
+        "Job Description",
+        height=220,
+        placeholder="Paste the complete job description here...\n\nExample:\nWe are looking for a Senior Backend Engineer with experience in Python, Django, REST APIs, PostgreSQL, Docker, and Kubernetes. The ideal candidate has 3+ years of experience building scalable microservices...",
+        label_visibility="collapsed",
+        key="ats_jd_input",
+    )
+
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        analyse_jd = st.button(
+            "🔍 Analyse Against This Job Description",
+            use_container_width=True,
+            disabled=not job_description.strip(),
+        )
+    with c2:
+        analyse_generic = st.button(
+            "📋 Generic ATS Scan",
+            use_container_width=True,
+            help="Run a general ATS scan against industry keywords without a specific JD.",
+        )
+
+    # ── Trigger Analysis ─────────────────────────────────────────────────────
+    if analyse_jd and job_description.strip():
+        with st.spinner("🤖 AI is analysing the job description and scoring your resume..."):
             checker = ATSChecker(st.session_state.resume_data)
-            st.session_state.ats_results = checker.calculate_score()
+            st.session_state.ats_results = checker.calculate_score(job_description=job_description.strip())
+
+    if analyse_generic:
+        with st.spinner("🔍 Running generic ATS compatibility scan..."):
+            checker = ATSChecker(st.session_state.resume_data)
+            st.session_state.ats_results = checker.calculate_score(job_description="")
+
+    # ── Display Results ──────────────────────────────────────────────────────
+    if st.session_state.ats_results is None:
+        st.markdown("""
+        <div class="glass-card" style="text-align:center; padding:2rem; border:1px dashed #64748B40;">
+            <div style="font-size:2.5rem; margin-bottom:0.5rem;">📋</div>
+            <div style="font-size:1.1rem; font-weight:600; color:#E2E8F0; margin-bottom:0.3rem;">
+                No ATS Analysis Yet
+            </div>
+            <div style="color:#94A3B8; font-size:0.9rem;">
+                Paste a job description above and click <strong>Analyse</strong> to see how your resume matches.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        return
 
     results = st.session_state.ats_results
+    mode = results.get("mode", "generic")
+
+    # Mode badge
+    if mode == "job_description":
+        st.markdown("""
+        <div style="background:rgba(108,99,255,0.15); border:1px solid rgba(108,99,255,0.3);
+                    border-radius:8px; padding:0.6rem 1rem; margin-bottom:1rem; display:inline-block;">
+            <span style="color:#6C63FF; font-weight:600; font-size:0.88rem;">🎯 JD-Specific Analysis</span>
+            <span style="color:#94A3B8; font-size:0.82rem;"> — Scored against the job description you provided</span>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="background:rgba(251,183,36,0.15); border:1px solid rgba(251,183,36,0.3);
+                    border-radius:8px; padding:0.6rem 1rem; margin-bottom:1rem; display:inline-block;">
+            <span style="color:#FBB724; font-weight:600; font-size:0.88rem;">📋 Generic Scan</span>
+            <span style="color:#94A3B8; font-size:0.82rem;"> — Scored against industry keyword database</span>
+        </div>
+        """, unsafe_allow_html=True)
 
     # ── Overall Score Gauge ─────────────────────────────────────────────────
     c1, c2, c3 = st.columns([1.5, 1, 1])
@@ -562,6 +633,20 @@ def page_ats_checker():
 
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
+    # ── JD Keywords Extracted (only in JD mode) ─────────────────────────────
+    if mode == "job_description" and results.get("jd_keywords"):
+        st.markdown("### 🔑 Keywords Extracted from Job Description")
+        jd_kw = results["jd_keywords"]
+        cols = st.columns(3)
+        col_idx = 0
+        for cat, keywords in jd_kw.items():
+            if keywords:
+                with cols[col_idx % 3]:
+                    st.markdown(f"**{cat}**")
+                    st.markdown(skill_tags_html(keywords), unsafe_allow_html=True)
+                col_idx += 1
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+
     # ── Category Scores Bar Chart ───────────────────────────────────────────
     cat_scores = results.get("category_scores", {})
     if cat_scores:
@@ -572,18 +657,24 @@ def page_ats_checker():
     c1, c2 = st.columns(2)
 
     with c1:
-        st.markdown("### ✅ Detected Skills")
+        st.markdown("### ✅ Matched Keywords")
         present = results.get("present_skills", {})
-        for cat, skills in present.items():
-            with st.expander(f"**{cat}** ({len(skills)})"):
-                st.markdown(skill_tags_html(skills), unsafe_allow_html=True)
+        if present:
+            for cat, skills in present.items():
+                with st.expander(f"**{cat}** ({len(skills)})"):
+                    st.markdown(skill_tags_html(skills), unsafe_allow_html=True)
+        else:
+            st.info("No keyword matches found.")
 
     with c2:
-        st.markdown("### ❌ Missing High-Value Skills")
+        st.markdown("### ❌ Missing Keywords")
         missing = results.get("missing_skills", {})
-        for cat, skills in missing.items():
-            with st.expander(f"**{cat}** — {len(skills)} missing"):
-                st.markdown(skill_tags_html(skills), unsafe_allow_html=True)
+        if missing:
+            for cat, skills in missing.items():
+                with st.expander(f"**{cat}** — {len(skills)} missing"):
+                    st.markdown(skill_tags_html(skills), unsafe_allow_html=True)
+        else:
+            st.success("No critical keywords missing!")
 
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
@@ -596,8 +687,9 @@ def page_ats_checker():
         </div>
         """, unsafe_allow_html=True)
 
-    # Re-analyse button
-    if st.button("🔄 Re-analyse Resume"):
+    # Clear results button
+    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+    if st.button("🔄 Run New Analysis", use_container_width=True):
         st.session_state.ats_results = None
         st.rerun()
 
@@ -629,6 +721,53 @@ def page_interview_setup():
 
         st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
+        # ── Company Selection ────────────────────────────────────────────────
+        st.markdown("### 🏢 Target Company")
+        st.markdown(
+            '<div style="color:#94A3B8; font-size:0.88rem; margin-bottom:0.5rem;">'
+            'Select a target company to get questions tailored to their specific interview style, '
+            'culture, and evaluation criteria.</div>',
+            unsafe_allow_html=True,
+        )
+        c_left, c_right = st.columns(2)
+        with c_left:
+            selected_company = st.selectbox(
+                "🏢 Select Company",
+                COMPANY_LIST,
+                index=0,
+                help="Choose a company to get interview questions matching their actual hiring process.",
+            )
+        with c_right:
+            custom_company = st.text_input(
+                "✏️ Or type a company name",
+                placeholder="e.g. Stripe, Razorpay, Zomato...",
+                help="If your target company isn't listed, type it here.",
+            )
+
+        # Resolve final company name
+        if selected_company == "Other (specify below)" and custom_company.strip():
+            target_company = custom_company.strip()
+        elif selected_company and selected_company != "-- No specific company --":
+            target_company = selected_company
+        else:
+            target_company = ""
+
+        # Show company interview profile if available
+        if target_company and target_company in COMPANY_PROFILES:
+            profile = COMPANY_PROFILES[target_company]
+            focus_html = "".join(f'<span class="skill-tag">{f}</span>' for f in profile.get("question_focus", []))
+            st.markdown(f"""
+            <div class="glass-card" style="border-left:3px solid #6C63FF; padding:1rem;">
+                <div style="font-weight:700; color:#E2E8F0; margin-bottom:0.5rem;">🎯 {target_company} Interview Profile</div>
+                <div style="color:#94A3B8; font-size:0.88rem; margin-bottom:0.5rem;">{profile.get('interview_style', '')}</div>
+                <div style="font-size:0.82rem; color:#64748B; margin-bottom:0.3rem;">Focus areas:</div>
+                <div style="line-height:2.2;">{focus_html}</div>
+                <div style="color:#64748B; font-size:0.8rem; margin-top:0.5rem; font-style:italic;">💡 {profile.get('interview_rounds', '')}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+
         generate_all = st.checkbox("🎲 Generate questions for ALL categories", value=False)
 
         submitted = st.form_submit_button("🚀 Generate Interview Questions", use_container_width=True)
@@ -642,6 +781,7 @@ def page_interview_setup():
                         difficulty,
                         num_per_category=max(2, num_questions // 4),
                         job_role=job_role,
+                        target_company=target_company,
                     )
                     questions = []
                     for cat_questions in all_cats.values():
@@ -653,12 +793,14 @@ def page_interview_setup():
                         difficulty,
                         num_questions,
                         job_role,
+                        target_company=target_company,
                     )
 
             st.session_state.questions = questions
             st.session_state.interview_difficulty = difficulty
             st.session_state.interview_category = category if not generate_all else "Mixed"
             st.session_state.interview_job_role = job_role
+            st.session_state.interview_company = target_company
             st.session_state.current_q_index = 0
             st.session_state.answers = []
             st.session_state.interview_active = False
@@ -698,7 +840,9 @@ def page_interview_setup():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def page_interview_mode():
-    st.markdown('<div class="hero-header"><h1>🎤 Interview Mode</h1><p>Answer each question as if you were in a real interview. Take your time!</p></div>', unsafe_allow_html=True)
+    company = st.session_state.get("interview_company", "")
+    company_label = f" — Preparing for <strong style='color:#6C63FF;'>{company}</strong>" if company else ""
+    st.markdown(f'<div class="hero-header"><h1>🎤 Interview Mode</h1><p>Answer each question as if you were in a real interview.{company_label}</p></div>', unsafe_allow_html=True)
 
     if not st.session_state.questions:
         st.warning("⚠️ No questions generated yet. Please set up your interview first.")
@@ -825,7 +969,10 @@ def _render_interview_complete():
     if st.session_state.session_evaluation is None:
         with st.spinner("🤖 AI is evaluating your answers... this may take 30–60 seconds."):
             evaluator = AnswerEvaluator()
-            evaluation = evaluator.evaluate_session(st.session_state.answers)
+            evaluation = evaluator.evaluate_session(
+                st.session_state.answers,
+                target_company=st.session_state.get("interview_company", ""),
+            )
             st.session_state.session_evaluation = evaluation
 
             # Save session to DB

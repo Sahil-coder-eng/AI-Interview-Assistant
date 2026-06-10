@@ -5,7 +5,7 @@
 import json
 import re
 from ai_client import AIClient
-from config import OPENROUTER_MODEL_INTERVIEW, EVALUATION_CRITERIA
+from config import OPENROUTER_MODEL_INTERVIEW, EVALUATION_CRITERIA, COMPANY_PROFILES
 
 
 class AnswerEvaluator:
@@ -37,7 +37,7 @@ class AnswerEvaluator:
 
     # ── Public API ──────────────────────────────────────────────────────────
 
-    def evaluate(self, question: str, answer: str, context: dict = None) -> dict:
+    def evaluate(self, question: str, answer: str, context: dict = None, target_company: str = "") -> dict:
         """
         Evaluate a single question-answer pair.
 
@@ -59,7 +59,7 @@ class AnswerEvaluator:
         if not answer or not answer.strip():
             return self._empty_answer_result()
 
-        prompt = self._build_evaluation_prompt(question, answer, context)
+        prompt = self._build_evaluation_prompt(question, answer, context, target_company)
         try:
             response_text = self.client.generate_content(prompt, model_name=OPENROUTER_MODEL_INTERVIEW)
             return self._parse_evaluation(response_text)
@@ -67,7 +67,7 @@ class AnswerEvaluator:
             print(f"[AnswerEvaluator] Error: {e}")
             return self._fallback_evaluation()
 
-    def evaluate_session(self, qa_pairs: list[dict]) -> dict:
+    def evaluate_session(self, qa_pairs: list[dict], target_company: str = "") -> dict:
         """
         Evaluate all Q&A pairs from an interview session.
 
@@ -82,6 +82,7 @@ class AnswerEvaluator:
             eval_result = self.evaluate(
                 qa.get("question", ""),
                 qa.get("answer", ""),
+                target_company=target_company,
             )
             eval_result["question"] = qa.get("question", "")
             eval_result["answer"] = qa.get("answer", "")
@@ -112,16 +113,57 @@ class AnswerEvaluator:
     # ── Prompt Builder ──────────────────────────────────────────────────────
 
     def _build_evaluation_prompt(
-        self, question: str, answer: str, context: dict
+        self, question: str, answer: str, context: dict, target_company: str = ""
     ) -> str:
-        """Construct the AI evaluation prompt."""
+        """Construct the AI evaluation prompt with company-specific standards."""
         context_str = ""
         if context:
             skills = ", ".join(context.get("skills", [])[:15])
             context_str = f"\nCandidate's known skills: {skills}"
 
+        # Build company-specific evaluation context
+        company_eval_block = ""
+        company_name = target_company.strip() if target_company else ""
+        if company_name and company_name not in ("", "-- No specific company --"):
+            profile = COMPANY_PROFILES.get(company_name, None)
+            if profile:
+                company_eval_block = f"""
+
+═══ COMPANY-SPECIFIC EVALUATION: {company_name} ═══
+Evaluate this answer as if you are an interviewer at **{company_name}**.
+Your scoring and feedback MUST reflect what {company_name} specifically values:
+
+What {company_name} looks for in great answers:
+{profile.get('what_great_looks_like', '')}
+
+Company culture & values to assess against:
+{profile.get('culture_values', '')}
+
+Red flags at {company_name}:
+{profile.get('red_flags', '')}
+
+Interview style context:
+{profile.get('interview_style', '')}
+
+⚠️ IMPORTANT: Your feedback should specifically mention how well the answer aligns
+with {company_name}'s expectations. For example:
+- At Amazon: Does the answer use STAR format? Does it map to Leadership Principles?
+- At Google: Does it show structured thinking? Does it analyze trade-offs?
+- At Meta: Is it concise and impact-focused? Are metrics mentioned?
+- At Infosys/TCS: Does it show strong fundamentals and clear communication?
+Tailor your feedback to THIS specific company.
+"""
+            else:
+                company_eval_block = f"""
+
+═══ COMPANY-SPECIFIC EVALUATION: {company_name} ═══
+Evaluate this answer considering what {company_name} would value in a candidate.
+Consider this company's known culture, interview expectations, and standards.
+"""
+
         return f"""
 You are an expert technical interviewer evaluating a candidate's response.{context_str}
+{company_eval_block}
 
 Interview Question:
 "{question}"
@@ -136,6 +178,8 @@ Evaluate the answer on EXACTLY these five criteria, each scored 1–10 (integers
 4. Completeness — Does the answer cover all key aspects?
 5. Confidence — Does the answer read with conviction and directness?
 
+{f'Score more strictly on criteria that {company_name} emphasizes most.' if company_name and company_name not in ('', '-- No specific company --') else ''}
+
 Return ONLY valid JSON. No markdown, no extra text. Format:
 {{
   "scores": {{
@@ -145,10 +189,10 @@ Return ONLY valid JSON. No markdown, no extra text. Format:
     "Completeness": <int>,
     "Confidence": <int>
   }},
-  "feedback": "<2–3 sentence overall feedback>",
+  "feedback": "<2–3 sentence overall feedback{f' referencing {company_name} standards' if company_name and company_name not in ('', '-- No specific company --') else ''}>",
   "strengths": ["<strength 1>", "<strength 2>"],
   "improvements": ["<area 1>", "<area 2>"],
-  "model_answer_hint": "<one sentence on what an ideal answer would include>"
+  "model_answer_hint": "<one sentence on what an ideal answer would include{f' at {company_name}' if company_name and company_name not in ('', '-- No specific company --') else ''}>"
 }}
 """
 

@@ -5,7 +5,7 @@
 import json
 import re
 from ai_client import AIClient
-from config import OPENROUTER_MODEL_INTERVIEW
+from config import OPENROUTER_MODEL_INTERVIEW, COMPANY_PROFILES
 
 
 class QuestionGenerator:
@@ -28,6 +28,7 @@ class QuestionGenerator:
         difficulty: str,
         num_questions: int = 5,
         job_role: str = "",
+        target_company: str = "",
     ) -> list[dict]:
         """
         Generate interview questions for a candidate.
@@ -38,12 +39,13 @@ class QuestionGenerator:
             difficulty (str): Beginner / Intermediate / Advanced.
             num_questions (int): Number of questions to generate (1–10).
             job_role (str): Target job role (optional, for role-specific Qs).
+            target_company (str): Target company name for company-specific Qs.
 
         Returns:
             list[dict]: Each dict has keys: question, category, difficulty, hint.
         """
         prompt = self._build_prompt(
-            resume_data, category, difficulty, num_questions, job_role
+            resume_data, category, difficulty, num_questions, job_role, target_company
         )
         try:
             response_text = self.client.generate_content(prompt, model_name=OPENROUTER_MODEL_INTERVIEW)
@@ -58,6 +60,7 @@ class QuestionGenerator:
         difficulty: str,
         num_per_category: int = 3,
         job_role: str = "",
+        target_company: str = "",
     ) -> dict:
         """
         Generate questions for all four standard categories in one call.
@@ -69,7 +72,7 @@ class QuestionGenerator:
         all_questions = {}
         for cat in categories:
             questions = self.generate_questions(
-                resume_data, cat, difficulty, num_per_category, job_role
+                resume_data, cat, difficulty, num_per_category, job_role, target_company
             )
             all_questions[cat] = questions
         return all_questions
@@ -110,12 +113,61 @@ Return ONLY the summary paragraph.
         difficulty: str,
         num_questions: int,
         job_role: str,
+        target_company: str = "",
     ) -> str:
-        """Build the AI prompt for question generation."""
+        """Build the AI prompt for question generation with company-specific intelligence."""
         skills = ", ".join(resume_data.get("skills", [])[:25])
         projects_snippet = resume_data.get("projects", "")[:600]
         experience_snippet = resume_data.get("experience", "")[:600]
         role_line = f"Target Job Role: {job_role}" if job_role else ""
+
+        # Build company-specific context block
+        company_block = ""
+        company_name = target_company.strip() if target_company else ""
+        if company_name and company_name not in ("", "-- No specific company --"):
+            profile = COMPANY_PROFILES.get(company_name, None)
+            if profile:
+                focus_items = "\n".join(f"   • {f}" for f in profile.get("question_focus", []))
+                company_block = f"""
+
+═══ COMPANY-SPECIFIC CONTEXT: {company_name} ═══
+You are simulating an interviewer at **{company_name}**. This is CRITICAL — your questions
+MUST reflect this company's unique interview style, not generic questions.
+
+Interview Style: {profile.get('interview_style', '')}
+
+What {company_name} focuses on:
+{focus_items}
+
+Company Culture & Values: {profile.get('culture_values', '')}
+
+What a great candidate looks like at {company_name}:
+{profile.get('what_great_looks_like', '')}
+
+Common question patterns at {company_name}:
+{profile.get('common_patterns', '')}
+
+Interview process: {profile.get('interview_rounds', '')}
+
+Red flags {company_name} interviewers watch for:
+{profile.get('red_flags', '')}
+
+⚠️ IMPORTANT: Generate questions that a REAL {company_name} interviewer would ask.
+Do NOT generate generic textbook questions. Every question should feel like it belongs
+in a {company_name} interview loop. Reference {company_name}'s products, scale,
+culture, or processes where relevant.
+"""
+            else:
+                # Custom company name (user typed it in)
+                company_block = f"""
+
+═══ COMPANY-SPECIFIC CONTEXT: {company_name} ═══
+You are simulating an interviewer at **{company_name}**.
+Research what you know about {company_name}'s interview process, culture, products,
+and technical stack. Generate questions that reflect how {company_name} actually
+conducts interviews. Make the questions specific to this company's domain,
+products, and engineering challenges.
+"""
 
         return f"""
 You are an expert technical interviewer. Generate exactly {num_questions} interview questions.
@@ -123,6 +175,7 @@ You are an expert technical interviewer. Generate exactly {num_questions} interv
 Category: {category}
 Difficulty: {difficulty}
 {role_line}
+{company_block}
 
 Candidate Profile:
 - Skills & Technologies: {skills}
@@ -130,14 +183,16 @@ Candidate Profile:
 - Projects: {projects_snippet[:300]}
 
 Requirements:
-1. Questions must be tailored to the candidate's actual skills.
+1. Questions must be tailored to BOTH the candidate's skills AND the target company's interview style.
 2. Match difficulty level precisely:
    - Beginner: conceptual, definitions, basic usage
    - Intermediate: design decisions, trade-offs, moderate coding
    - Advanced: system design, optimisation, architecture, edge cases
 3. For "Project-Based": reference the candidate's projects.
-4. For "HR / Behavioral": use STAR-format prompts.
-5. Return ONLY a valid JSON array — no markdown fences, no extra text.
+4. For "HR / Behavioral": use STAR-format prompts relevant to the company's culture.
+5. If a target company is specified, questions MUST reflect that company's known interview patterns.
+   Do NOT give the same questions you'd give for a different company.
+6. Return ONLY a valid JSON array — no markdown fences, no extra text.
 
 JSON format:
 [
