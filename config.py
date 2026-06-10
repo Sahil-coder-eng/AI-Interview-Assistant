@@ -1,5 +1,6 @@
 # ============================================================
 #  config.py — Central configuration for AI Interview Assistant
+#  Updated: Company profiles, ATS JD-based scoring
 # ============================================================
 
 import os
